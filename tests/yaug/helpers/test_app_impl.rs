@@ -18,7 +18,7 @@ impl TestApp {
     //region Login
     pub async fn get_login_page(&self) -> reqwest::Response {
         self.api_client
-            .get(&format!("{}/login". & self.address))
+            .get(&format!("{}/login", &self.address))
             .send()
             .await
             .expect("Failed to execute request to get login page")

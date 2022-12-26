@@ -137,7 +137,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
             config::File::from(configuration_directory.join("config.toml"))
         )
         .add_source(
-            config::File::from(configuration_directory.join(&environment_filename))
+            config::File::from(configuration_directory.join(&environment_filename)).required(false)
         )
         .add_source(
             config::Environment::with_prefix("APP")

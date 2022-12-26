@@ -32,13 +32,13 @@ if [[ -z "${SKIP_DOCKER}" ]]; then
 fi
 
 export PGPASSWORD="${DB_PASSWORD}"
-until psql -h "localhost" -U "${DB_USER}" -p "${DB_PORT}" -d "postgres" -c '\q'; do
+until psql -h "192.168.2.2" -U "${DB_USER}" -p "${DB_PORT}" -d "postgres" -c '\q'; do
   echo >&2 "Postgres is still unavailable - sleeping"
   sleep 1
 done
 echo >&2 "Postgres is up and running on port ${DB_PORT}!"
 
-DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}
+DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@192.168.2.2:${DB_PORT}/${DB_NAME}
 export DATABASE_URL
 sqlx database create
 sqlx migrate run
