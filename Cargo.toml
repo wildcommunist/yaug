@@ -17,3 +17,33 @@ opt-level = "s"
 lto = true
 codegen-units = 1
 panic = "abort"
+
+[dependencies]
+actix-web = "4"
+actix-web-flash-messages = { version = "0.4", features = ["cookies"] }
+actix-session = { version = "0.6", features = ["redis-rs-tls-session"] }
+serde = { version = "1.0.149", features = ["derive"] }
+serde-aux = "4"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+config = "0.13"
+uuid = { version = "1", features = ["v4", "serde"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
+tracing-bunyan-formatter = "0.3"
+tracing-log = "0.1"
+tracing-actix-web = "0.6"
+secrecy = { version = "0.8", features = ["serde"] }
+anyhow = "1"
+
+[dependencies.sqlx]
+version = "0.6"
+default-features = false
+features = [
+    "runtime-tokio-rustls",
+    "macros",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "offline"
+]
