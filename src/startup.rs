@@ -2,14 +2,16 @@ use actix_web::dev::Server;
 use std::net::TcpListener;
 use actix_session::SessionMiddleware;
 use actix_session::storage::RedisSessionStore;
-use actix_web::{App, HttpServer};
+use actix_web::{App, HttpServer, web};
 use actix_web::cookie::Key;
 use actix_web::web::Data;
 use actix_web_flash_messages::FlashMessagesFramework;
 use actix_web_flash_messages::storage::CookieMessageStore;
+use actix_web_lab::middleware::from_fn;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 use tracing_actix_web::TracingLogger;
+use crate::authentication::reject_anonymous_users;
 use crate::configuration::Settings;
 
 //region Application & impl
@@ -69,6 +71,11 @@ pub async fn run(
                     redis_store.clone(),
                     secret_key.clone(),
                 )
+            )
+            .service(
+                // Logged in routes
+                web::scope("/")
+                    .wrap(from_fn(reject_anonymous_users))
             )
             .app_data(connection_pool.clone())
     })
