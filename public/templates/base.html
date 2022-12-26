@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block head %}
+    <link rel="stylesheet" href="/static/reset.css" />
+    <link rel="stylesheet" href="/static/yaug.css" />
+    <title>{% block title %}{% endblock title %} - YAUG</title>
+    {% endblock head %}
+</head>
+<body>
+<div id="content">
+    <div class="flash">{% block flash %}{% endblock flash %}</div>
+    <div id="main">{% block content %}{% endblock content %}</div>
+</div>
+<div id="footer">
+    {% block footer %}
+    &copy; Copyright 2022 by <a href="http://domain.invalid/">me</a>.
+    {% endblock footer %}
+</div>
+</body>
+</html>

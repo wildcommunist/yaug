@@ -10,9 +10,11 @@ use actix_web_flash_messages::storage::CookieMessageStore;
 use actix_web_lab::middleware::from_fn;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
+use tera::Tera;
 use tracing_actix_web::TracingLogger;
 use crate::authentication::reject_anonymous_users;
 use crate::configuration::Settings;
+use crate::routes::{get_home_page, get_login_form};
 
 //region Application & impl
 pub struct Application {
@@ -30,11 +32,15 @@ impl Application {
         let tcp_listener = TcpListener::bind(&listen_address)?;
         let local_port = tcp_listener.local_addr().unwrap().port(); // We are needing this for testing suites where ports are dynamic
 
+        let mut tera = config.get_template_engine();
+        tera.autoescape_on(vec![]);
+
         let server = run(
             tcp_listener,
             config.db.get_connection_pool(),
             config.app.redis_uri,
             config.app.cookie_secret,
+            tera,
         ).await?;
 
         Ok(Self { port: local_port, server })
@@ -55,8 +61,10 @@ pub async fn run(
     pool: PgPool,
     redis_uri: Secret<String>,
     cookie_secret: Secret<String>,
+    template_engine: Tera,
 ) -> Result<Server, anyhow::Error> {
     let connection_pool = Data::new(pool);
+    let template = Data::new(template_engine);
     let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
     let secret_key = Key::from(cookie_secret.expose_secret().as_bytes());
     let message_store = CookieMessageStore::builder(secret_key.clone()).build();
@@ -72,12 +80,16 @@ pub async fn run(
                     secret_key.clone(),
                 )
             )
+            .service(actix_files::Files::new("/static", "public/static").use_last_modified(true))//Maybe move this all to static domain in teh future?
+            .route("/", web::get().to(get_home_page))
+            .route("/login", web::get().to(get_login_form))
             .service(
                 // Logged in routes
                 web::scope("/")
                     .wrap(from_fn(reject_anonymous_users))
             )
             .app_data(connection_pool.clone())
+            .app_data(template.clone())
     })
         .listen(listener)?
         .run();

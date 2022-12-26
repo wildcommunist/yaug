@@ -2,6 +2,7 @@ use secrecy::{ExposeSecret, Secret};
 use sqlx::{ConnectOptions, PgPool};
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use serde_aux::field_attributes::deserialize_number_from_string;
+use tera::Tera;
 
 // region Enums & Implementations
 pub enum Environment {
@@ -55,6 +56,11 @@ impl Settings {
             .try_into()
             .expect("Failed to parse `APP_ENVIRONMENT`.")
     }
+
+    pub fn get_template_engine(&self) -> Tera {
+        let template_dir = &self.app.template_base_dir;
+        Tera::new(template_dir).unwrap()
+    }
 }
 
 #[derive(serde::Deserialize, Clone)]
@@ -64,6 +70,7 @@ pub struct ApplicationSettings {
     pub host: String,
     pub redis_uri: Secret<String>,
     pub cookie_secret: Secret<String>,
+    pub template_base_dir: String,
 }
 
 #[derive(serde::Deserialize, Clone)]
