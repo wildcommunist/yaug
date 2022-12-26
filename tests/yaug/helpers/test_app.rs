@@ -29,6 +29,11 @@ pub struct TestApp {
     pub api_client: reqwest::Client,
 }
 
+impl Drop for TestApp {
+    fn drop(&mut self) {
+    }
+}
+
 pub async fn spawn_test_app() -> TestApp {
     Lazy::force(&TRACING);
 
@@ -84,3 +89,4 @@ async fn setup_test_database_and_migrate(db_settings: &DatabaseSettings) -> PgPo
 
     connection_pool
 }
+
