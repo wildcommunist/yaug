@@ -1,0 +1,19 @@
+[package]
+name = "yaug"
+description = "Yet Another Unnamed Game"
+version = "0.0.1"
+edition = "2021"
+authors = ["WildCommunist <alex@ceres.ventures>"]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "yaug"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
