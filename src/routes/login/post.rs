@@ -1,14 +1,16 @@
 use std::fmt::Formatter;
 use actix_web::error::InternalError;
 use actix_web::{HttpResponse, ResponseError};
+use actix_web::http::header::LOCATION;
 use actix_web::http::StatusCode;
 use actix_web::web::{Data, Form};
+use actix_web_flash_messages::FlashMessage;
 use secrecy::{Secret};
 use serde::Deserialize;
 use sqlx::PgPool;
-use crate::authentication::{YaugSession};
-use crate::domain::{LoginCredentials, LoginEmail, LoginPassword};
-use crate::utils::error_chain_fmt;
+use crate::authentication::{AuthenticationError, Credentials, validate_login_credentials, YaugSession};
+use crate::domain::{LoginCredentials, UserEmail, LoginPassword};
+use crate::utils::{error_chain_fmt, see_other};
 
 #[derive(Deserialize)]
 pub struct LoginFormData {
@@ -19,7 +21,7 @@ pub struct LoginFormData {
 impl TryFrom<LoginFormData> for LoginCredentials {
     type Error = String;
     fn try_from(value: LoginFormData) -> Result<Self, Self::Error> {
-        let email = LoginEmail::parse(value.email)?;
+        let email = UserEmail::parse(value.email)?;
         let password = LoginPassword::parse(value.password)?;
         Ok(LoginCredentials {
             email,
@@ -66,11 +68,35 @@ pub async fn post_login(
     data: Form<LoginFormData>,
     pool: Data<PgPool>,
     session: YaugSession,
-) -> Result<HttpResponse, LoginError> {
-    let login_credentials: LoginCredentials = data.0.try_into().map_err(LoginError::ValidationError)?;
+) -> Result<HttpResponse, InternalError<LoginError>> {
+    let credentials = Credentials {
+        email: data.0.email,
+        password: data.0.password,
+    };
+    tracing::Span::current().record("email", &tracing::field::display(&credentials.email));
 
-    tracing::Span::current().record("email", &tracing::field::display(&login_credentials.email));
+    match validate_login_credentials(credentials, &pool).await {
+        Ok(user_id) => {
+            session.renew();
+            session.insert_user_id(user_id)
+                .map_err(|e| login_redirect(LoginError::UnexpectedError(e.into())))?;
+            tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+            Ok(see_other("/account"))
+        }
+        Err(e) => {
+            let e = match e {
+                AuthenticationError::InvalidCredentials(_) => LoginError::InvalidCredentials(e.into()),
+                AuthenticationError::UnexpectedError(_) => LoginError::UnexpectedError(e.into())
+            };
+            Err(login_redirect(e))
+        }
+    }
+}
 
-
-    todo!()
+fn login_redirect(e: LoginError) -> InternalError<LoginError> {
+    FlashMessage::error(e.to_string()).send();
+    let response = HttpResponse::SeeOther()
+        .insert_header((LOCATION, "/login"))
+        .finish();
+    InternalError::from_response(e, response)
 }

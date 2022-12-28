@@ -1,8 +1,11 @@
+use std::time::Duration;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::{ConnectOptions, PgPool};
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use tera::Tera;
+use crate::domain::UserEmail;
+use crate::email_client::EmailClient;
 
 // region Enums & Implementations
 pub enum Environment {
@@ -47,6 +50,7 @@ impl TryFrom<String> for Environment {
 pub struct Settings {
     pub app: ApplicationSettings,
     pub db: DatabaseSettings,
+    pub email: EmailSettings,
 }
 
 impl Settings {
@@ -116,6 +120,36 @@ impl DatabaseSettings {
             .connect_lazy_with(self.get_conn_str_with_db())
     }
 }
+
+#[derive(serde::Deserialize, Clone)]
+pub struct EmailSettings {
+    pub base_url: String,
+    pub sender_email: String,
+    pub auth_token: Secret<String>,
+    pub timeout_milliseconds: u64,
+}
+
+impl EmailSettings {
+    pub fn sender(&self) -> Result<UserEmail, String> {
+        UserEmail::parse(self.sender_email.clone())
+    }
+
+    pub fn timeout(&self) -> Duration {
+        Duration::from_millis(self.timeout_milliseconds)
+    }
+
+    pub fn client(self) -> EmailClient {
+        let sender_email = self.sender().expect("Invalid sender email address");
+        let timeout = self.timeout();
+        EmailClient::new(
+            self.base_url,
+            sender_email,
+            self.auth_token,
+            timeout,
+        )
+    }
+}
+
 //endregion
 
 //region functions

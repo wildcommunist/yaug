@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::telemetry::spawn_blocking_with_tracing;
 
 pub struct Credentials {
-    pub username: String,
+    pub email: String,
     pub password: Secret<String>,
 }
 
@@ -19,8 +19,8 @@ pub enum AuthenticationError {
 }
 
 #[tracing::instrument(
-name = "Validate credentials",
-skip(credentials, pool)
+name = "Validate login credentials",
+skip(credentials, pool),
 )]
 pub async fn validate_login_credentials(
     credentials: Credentials,
@@ -34,7 +34,7 @@ pub async fn validate_login_credentials(
     );
 
     if let Some((stored_user_id, stored_password_hash)) = get_stored_credentials(
-        pool, &credentials.username,
+        pool, &credentials.email,
     ).await.map_err(AuthenticationError::UnexpectedError)?
     {
         user_id = Some(stored_user_id);
@@ -53,7 +53,7 @@ pub async fn validate_login_credentials(
 }
 
 #[tracing::instrument(
-name = "get store credentials",
+name = "get stored credentials",
 skip(pool, email)
 )]
 pub async fn get_stored_credentials(

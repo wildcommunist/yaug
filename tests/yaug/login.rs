@@ -17,13 +17,15 @@ async fn invalid_credentials_redirect_to_login_with_message() {
     let password = Uuid::new_v4().to_string();
     let invalid_body = serde_json::json!(
         {
-            "username":username,
+            "email":username,
             "password":password
         }
     );
     let response = app.post_login(&invalid_body).await;
-
     assert_is_redirected_to(&response, "/login");
+
+    let html = app.get_login_page_html().await;
+    assert!(html.contains("Authentication failed"));
 }
 
 #[tokio::test]

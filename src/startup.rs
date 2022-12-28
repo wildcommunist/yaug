@@ -14,7 +14,7 @@ use tera::Tera;
 use tracing_actix_web::TracingLogger;
 use crate::authentication::reject_anonymous_users;
 use crate::configuration::Settings;
-use crate::routes::{get_account_home, get_home_page, get_login_form, post_login};
+use crate::routes::{get_account_home, get_home_page, get_login_form, post_login, get_register_form, post_register};
 
 //region Application & impl
 pub struct Application {
@@ -91,6 +91,8 @@ pub async fn run(
             .route("/", web::get().to(get_home_page))
             .route("/login", web::get().to(get_login_form))
             .route("/login", web::post().to(post_login))
+            .route("/register", web::get().to(get_register_form))
+            .route("/register", web::post().to(post_register))
             .service(
                 // Logged in routes
                 web::scope("")

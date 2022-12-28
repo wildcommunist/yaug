@@ -4,9 +4,9 @@ use regex::Regex;
 use validator::validate_email;
 
 #[derive(Debug)]
-pub struct LoginEmail(String);
+pub struct UserEmail(String);
 
-impl LoginEmail {
+impl UserEmail {
     pub fn parse(v: String) -> Result<Self, String> {
         if validate_email(&v) {
             lazy_static! {
@@ -16,7 +16,7 @@ impl LoginEmail {
             }
 
             if RE.is_match(&v) {
-                Ok(LoginEmail(v))
+                Ok(UserEmail(v))
             } else {
                 Err(format!("{} is not a valid email address", v))
             }
@@ -26,13 +26,13 @@ impl LoginEmail {
     }
 }
 
-impl AsRef<str> for LoginEmail {
+impl AsRef<str> for UserEmail {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
-impl std::fmt::Display for LoginEmail {
+impl std::fmt::Display for UserEmail {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(&self.0, f)
     }
@@ -44,7 +44,7 @@ mod tests {
     use fake::Fake;
     use quickcheck::Gen;
     use fake::faker::internet::en::SafeEmail;
-    use crate::domain::login_credentials::email::LoginEmail;
+    use crate::domain::login_credentials::email::UserEmail;
 
     #[derive(Debug, Clone)]
     struct ValidEmailFixture(pub String);
@@ -59,42 +59,42 @@ mod tests {
 
     #[quickcheck_macros::quickcheck]
     fn valid_emails_are_parsed_successfully(email: ValidEmailFixture) -> bool {
-        LoginEmail::parse(email.0).is_ok()
+        UserEmail::parse(email.0).is_ok()
     }
 
     #[test]
     fn valid_long_domain_emails_are_parsed_successfully() {
         let email = format!("user@active.few.sub.domain");
-        assert_ok!(LoginEmail::parse(email));
+        assert_ok!(UserEmail::parse(email));
     }
 
     #[test]
     fn empty_string_is_rejected() {
         let email = "".to_string();
-        assert_err!(LoginEmail::parse(email));
+        assert_err!(UserEmail::parse(email));
     }
 
     #[test]
     fn missing_at_symbol_rejected() {
         let email = "userdomain.com".to_string();
-        assert_err!(LoginEmail::parse(email));
+        assert_err!(UserEmail::parse(email));
     }
 
     #[test]
     fn missing_subject_rejected() {
         let email = "@domain.com".to_string();
-        assert_err!(LoginEmail::parse(email));
+        assert_err!(UserEmail::parse(email));
     }
 
     #[test]
     fn missing_domain_rejected() {
         let email = "user@".to_string();
-        assert_err!(LoginEmail::parse(email));
+        assert_err!(UserEmail::parse(email));
     }
 
     #[test]
     fn invalid_domain_rejected() {
         let email = "user@domain".to_string();
-        assert_err!(LoginEmail::parse(email));
+        assert_err!(UserEmail::parse(email));
     }
 }

@@ -18,7 +18,6 @@ impl LoginPassword {
 #[cfg(test)]
 mod tests {
     use claim::assert_err;
-    use fake::Fake;
     use quickcheck::Gen;
     use rand::Rng;
     use secrecy::Secret;

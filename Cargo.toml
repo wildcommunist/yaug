@@ -57,7 +57,7 @@ features = [
     "offline"
 ]
 
-[dev-dependencies.reqwest]
+[dependencies.reqwest]
 version = "0.11"
 default-features = false
 # We need the `json` feature flag to serialize/deserialize JSON payloads

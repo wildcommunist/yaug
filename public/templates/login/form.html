@@ -6,9 +6,13 @@
 {% block content %}
 <h3>Please login</h3>
 <p>
+    {% for msg in flash %}
+    <p>{{ msg }}</p>
+    {% endfor %}
 <form action="/login" method="post">
-    <input type="text" name="username" placeholder="username"/><br/>
+    <input type="text" name="email" placeholder="email"/><br/>
     <input type="password" name="password"/>
+    <input type="submit" value="Login" />
 </form>
 </p>
 {% endblock content %}

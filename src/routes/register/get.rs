@@ -5,7 +5,7 @@ use actix_web::web::Data;
 use tera::{Context, Tera};
 use crate::utils::e500;
 
-pub async fn get_login_form(
+pub async fn get_register_form(
     flash_messages: IncomingFlashMessages,
     tpl: Data<Tera>,
 ) -> Result<HttpResponse, actix_web::Error> {
@@ -24,7 +24,7 @@ pub async fn get_login_form(
         HttpResponse::Ok()
             .content_type(ContentType::html())
             .body(
-                tpl.render("login/form.html", &ctx).map_err(e500)?
+                tpl.render("register/form.html", &ctx).map_err(e500)?
             )
     )
 }
