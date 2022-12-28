@@ -1,5 +1,3 @@
-use lazy_static::lazy_static;
-use regex::Regex;
 use secrecy::{ExposeSecret, Secret};
 
 #[derive(Debug)]
@@ -7,11 +5,22 @@ pub struct LoginPassword(Secret<String>);
 
 impl LoginPassword {
     pub fn parse(v: Secret<String>) -> Result<Self, String> {
-        if v.expose_secret().len() < 8 || v.expose_secret().len() > 120 {
-            return Err(format!("Password does not meet minimum criteria"));
+        let pass = v.expose_secret();
+
+        let empty_or_whitespace = pass.trim().is_empty();
+        let correct_length = match pass.len() {
+            8..=120 => true,
+            _ => false
+        };
+
+        let required_characters = ['~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '-', '+', '=', '{', '[', '}', ']', '|', '\\', ':', ';', '"', '\'', '<', ',', '>', '.', '?', '/'];
+        let contains_required_characters = pass.chars().any(|c| required_characters.contains(&c));
+
+        if empty_or_whitespace || !correct_length || !contains_required_characters {
+            return Err("Password does not meet minimum requirements".to_string());
         }
 
-        Ok(LoginPassword(Secret::new(v.expose_secret().to_string())))
+        Ok(LoginPassword(Secret::new(pass.to_string())))
     }
 }
 
@@ -38,12 +47,20 @@ mod tests {
 
     fn generate_password(length: u8) -> String {
         let mut rng = rand::thread_rng();
-        let password: String = (0..length)
+        let required_characters = ['~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '-', '+', '=', '{', '[', '}', ']', '|', '\\', ':', ';', '"', '\'', '<', ',', '>', '.', '?', '/'];
+        let mut password: String = (0..length)
             .map(|_| {
                 let idx = rng.gen_range(0..PASSWORD_CHARSET.len());
                 PASSWORD_CHARSET[idx] as char
             })
             .collect();
+        if !password.chars().any(|c| required_characters.contains(&c)) {
+            // we dont have any special symbols, replace the first one with a random special character
+            let rand_special_char = rng.gen_range(0..required_characters.len());
+            let rand_char = required_characters[rand_special_char];
+            password.replace_range(0..1, &format!("{}", rand_char));
+        }
+
         password
     }
 
@@ -67,6 +84,12 @@ mod tests {
     #[test]
     fn long_password_length_is_rejected() {
         let password = Secret::new(generate_password(121));
+        assert_err!(LoginPassword::parse(password));
+    }
+
+    #[test]
+    fn password_is_rejected_if_no_special_symbols_are_present() {
+        let password = Secret::new("12345678".to_string());
         assert_err!(LoginPassword::parse(password));
     }
 }
