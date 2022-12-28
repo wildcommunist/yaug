@@ -14,7 +14,7 @@ use tera::Tera;
 use tracing_actix_web::TracingLogger;
 use crate::authentication::reject_anonymous_users;
 use crate::configuration::Settings;
-use crate::routes::{get_account_home, get_home_page, get_login_form};
+use crate::routes::{get_account_home, get_home_page, get_login_form, post_login};
 
 //region Application & impl
 pub struct Application {
@@ -65,10 +65,14 @@ pub async fn run(
 ) -> Result<Server, anyhow::Error> {
     let connection_pool = Data::new(pool);
     let template = Data::new(template_engine);
-    let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
+    let redis_store = RedisSessionStore::new(redis_uri.expose_secret())
+        .await?;
     let secret_key = Key::from(cookie_secret.expose_secret().as_bytes());
-    let message_store = CookieMessageStore::builder(secret_key.clone()).build();
-    let message_framework = FlashMessagesFramework::builder(message_store).build();
+    let message_store = CookieMessageStore::builder(secret_key.clone())
+        .build();
+    let message_framework = FlashMessagesFramework::builder(
+        message_store
+    ).build();
 
     let server = HttpServer::new(move || {
         App::new()
@@ -80,9 +84,13 @@ pub async fn run(
                     secret_key.clone(),
                 )
             )
-            .service(actix_files::Files::new("/static", "public/static").use_last_modified(true))//Maybe move this all to static domain in teh future?
+            .service(
+                actix_files::Files::new("/static", "public/static")
+                    .use_last_modified(true)
+            )//Maybe move this all to static domain in teh future?
             .route("/", web::get().to(get_home_page))
             .route("/login", web::get().to(get_login_form))
+            .route("/login", web::post().to(post_login))
             .service(
                 // Logged in routes
                 web::scope("")
