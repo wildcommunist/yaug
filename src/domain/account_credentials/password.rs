@@ -1,9 +1,9 @@
 use secrecy::{ExposeSecret, Secret};
 
 #[derive(Debug)]
-pub struct LoginPassword(Secret<String>);
+pub struct AccountPassword(Secret<String>);
 
-impl LoginPassword {
+impl AccountPassword {
     pub fn parse(v: Secret<String>) -> Result<Self, String> {
         let pass = v.expose_secret();
 
@@ -20,7 +20,7 @@ impl LoginPassword {
             return Err("Password does not meet minimum requirements".to_string());
         }
 
-        Ok(LoginPassword(Secret::new(pass.to_string())))
+        Ok(AccountPassword(Secret::new(pass.to_string())))
     }
 }
 
@@ -30,7 +30,7 @@ mod tests {
     use quickcheck::Gen;
     use rand::Rng;
     use secrecy::Secret;
-    use crate::domain::LoginPassword;
+    use crate::domain::AccountPassword;
 
     #[derive(Debug, Clone)]
     struct ValidPasswordFixture(pub Secret<String>);
@@ -66,7 +66,7 @@ mod tests {
 
     #[quickcheck_macros::quickcheck]
     fn valid_password_is_accepted(pass: ValidPasswordFixture) -> bool {
-        LoginPassword::parse(pass.0).is_ok()
+        AccountPassword::parse(pass.0).is_ok()
     }
 
     fn generate_valid_password() -> String {
@@ -78,18 +78,24 @@ mod tests {
     #[test]
     fn short_password_length_is_rejected() {
         let password = Secret::new(generate_password(7));
-        assert_err!(LoginPassword::parse(password));
+        assert_err!(AccountPassword::parse(password));
     }
 
     #[test]
     fn long_password_length_is_rejected() {
         let password = Secret::new(generate_password(121));
-        assert_err!(LoginPassword::parse(password));
+        assert_err!(AccountPassword::parse(password));
     }
 
     #[test]
     fn password_is_rejected_if_no_special_symbols_are_present() {
         let password = Secret::new("12345678".to_string());
-        assert_err!(LoginPassword::parse(password));
+        assert_err!(AccountPassword::parse(password));
+    }
+
+    #[test]
+    fn whitespace_are_rejected() {
+        let password = Secret::new(" ".to_string());
+        assert_err!(AccountPassword::parse(password));
     }
 }

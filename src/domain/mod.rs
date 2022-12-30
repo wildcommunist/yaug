@@ -1,3 +1,3 @@
-mod login_credentials;
+mod account_credentials;
 
-pub use login_credentials::{LoginCredentials, UserEmail, LoginPassword};
+pub use account_credentials::{AccountCredentials, AccountEmail, AccountPassword};

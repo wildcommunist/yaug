@@ -4,7 +4,7 @@ use sqlx::{ConnectOptions, PgPool};
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions, PgSslMode};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use tera::Tera;
-use crate::domain::UserEmail;
+use crate::domain::AccountEmail;
 use crate::email_client::EmailClient;
 
 // region Enums & Implementations
@@ -69,6 +69,7 @@ impl Settings {
 
 #[derive(serde::Deserialize, Clone)]
 pub struct ApplicationSettings {
+    pub base_url: String,
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
@@ -130,8 +131,8 @@ pub struct EmailSettings {
 }
 
 impl EmailSettings {
-    pub fn sender(&self) -> Result<UserEmail, String> {
-        UserEmail::parse(self.sender_email.clone())
+    pub fn sender(&self) -> Result<AccountEmail, String> {
+        AccountEmail::parse(self.sender_email.clone())
     }
 
     pub fn timeout(&self) -> Duration {

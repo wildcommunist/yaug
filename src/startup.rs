@@ -14,6 +14,7 @@ use tera::Tera;
 use tracing_actix_web::TracingLogger;
 use crate::authentication::reject_anonymous_users;
 use crate::configuration::Settings;
+use crate::email_client::EmailClient;
 use crate::routes::{get_account_home, get_home_page, get_login_form, post_login, get_register_form, post_register};
 
 //region Application & impl
@@ -35,12 +36,16 @@ impl Application {
         let mut tera = config.get_template_engine();
         tera.autoescape_on(vec![]);
 
+        let email_client = config.email.client();
+
         let server = run(
+            config.app.base_url,
             tcp_listener,
             config.db.get_connection_pool(),
             config.app.redis_uri,
             config.app.cookie_secret,
             tera,
+            email_client,
         ).await?;
 
         Ok(Self { port: local_port, server })
@@ -56,15 +61,21 @@ impl Application {
 }
 //endregion
 
+pub struct ApplicationBaseUrl(pub String);
+
 pub async fn run(
+    base_url: String,
     listener: TcpListener,
     pool: PgPool,
     redis_uri: Secret<String>,
     cookie_secret: Secret<String>,
     template_engine: Tera,
+    email_client: EmailClient,
 ) -> Result<Server, anyhow::Error> {
+    let base_url = Data::new(ApplicationBaseUrl(base_url));
     let connection_pool = Data::new(pool);
     let template = Data::new(template_engine);
+    let email_client = Data::new(email_client);
     let redis_store = RedisSessionStore::new(redis_uri.expose_secret())
         .await?;
     let secret_key = Key::from(cookie_secret.expose_secret().as_bytes());
@@ -99,8 +110,10 @@ pub async fn run(
                     .wrap(from_fn(reject_anonymous_users))
                     .route("/account", web::get().to(get_account_home))
             )
+            .app_data(base_url.clone())
             .app_data(connection_pool.clone())
             .app_data(template.clone())
+            .app_data(email_client.clone())
     })
         .listen(listener)?
         .run();

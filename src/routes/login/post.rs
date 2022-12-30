@@ -9,25 +9,12 @@ use secrecy::{Secret};
 use serde::Deserialize;
 use sqlx::PgPool;
 use crate::authentication::{AuthenticationError, Credentials, validate_login_credentials, YaugSession};
-use crate::domain::{LoginCredentials, UserEmail, LoginPassword};
 use crate::utils::{error_chain_fmt, see_other};
 
 #[derive(Deserialize)]
 pub struct LoginFormData {
     pub email: String,
     pub password: Secret<String>,
-}
-
-impl TryFrom<LoginFormData> for LoginCredentials {
-    type Error = String;
-    fn try_from(value: LoginFormData) -> Result<Self, Self::Error> {
-        let email = UserEmail::parse(value.email)?;
-        let password = LoginPassword::parse(value.password)?;
-        Ok(LoginCredentials {
-            email,
-            password,
-        })
-    }
 }
 
 #[derive(thiserror::Error)]

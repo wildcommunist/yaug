@@ -1,12 +1,12 @@
 use std::time::Duration;
 use reqwest::Client;
 use secrecy::{ExposeSecret, Secret};
-use crate::domain::UserEmail;
+use crate::domain::AccountEmail;
 
 pub struct EmailClient {
     http_client: Client,
     base_url: String,
-    sender: UserEmail,
+    sender: AccountEmail,
     auth_token: Secret<String>,
 }
 
@@ -23,7 +23,7 @@ struct SendEmailRequest<'s> {
 impl EmailClient {
     pub fn new(
         base_url: String,
-        sender: UserEmail,
+        sender: AccountEmail,
         auth_token: Secret<String>,
         timeout: Duration,
     ) -> Self {
@@ -38,7 +38,7 @@ impl EmailClient {
 
     pub async fn send_email(
         &self,
-        recipient: &UserEmail,
+        recipient: &AccountEmail,
         subject: &str,
         html_message: &str,
         plain_message: &str,
@@ -78,7 +78,7 @@ mod tests {
     use secrecy::Secret;
     use wiremock::{Match, Mock, MockServer, Request, ResponseTemplate};
     use wiremock::matchers::{any, header, header_exists, method, path};
-    use crate::domain::UserEmail;
+    use crate::domain::AccountEmail;
     use crate::email_client::EmailClient;
 
     struct EmailBodyMatcher;
@@ -112,8 +112,8 @@ mod tests {
         Paragraph(2..10).fake()
     }
 
-    fn email() -> UserEmail {
-        UserEmail::parse(SafeEmail().fake()).unwrap()
+    fn email() -> AccountEmail {
+        AccountEmail::parse(SafeEmail().fake()).unwrap()
     }
 
     fn email_client(base_url: String) -> EmailClient {
