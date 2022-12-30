@@ -79,7 +79,7 @@ pub async fn get_stored_credentials(
 name = "Verify password hash",
 skip(expected, given)
 )]
-fn verify_password_hash(
+pub fn verify_password_hash(
     expected: Secret<String>,
     given: Secret<String>,
 ) -> Result<(), AuthenticationError> {

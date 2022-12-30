@@ -1,7 +1,22 @@
+use anyhow::Context;
+use argon2::{Algorithm, Argon2, Params, PasswordHash, PasswordHasher, Version};
+use argon2::password_hash::SaltString;
+use rand::Rng;
 use secrecy::{ExposeSecret, Secret};
+use crate::telemetry::spawn_blocking_with_tracing;
+
+const PASSWORD_CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                            abcdefghijklmnopqrstuvwxyz\
+                            0123456789)(*&^%$#@!~";
 
 #[derive(Debug)]
 pub struct AccountPassword(Secret<String>);
+
+impl AsRef<Secret<String>> for AccountPassword {
+    fn as_ref(&self) -> &Secret<String> {
+        &self.0
+    }
+}
 
 impl AccountPassword {
     pub fn parse(v: Secret<String>) -> Result<Self, String> {
@@ -22,30 +37,12 @@ impl AccountPassword {
 
         Ok(AccountPassword(Secret::new(pass.to_string())))
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use claim::assert_err;
-    use quickcheck::Gen;
-    use rand::Rng;
-    use secrecy::Secret;
-    use crate::domain::AccountPassword;
-
-    #[derive(Debug, Clone)]
-    struct ValidPasswordFixture(pub Secret<String>);
-
-    impl quickcheck::Arbitrary for ValidPasswordFixture {
-        fn arbitrary<G: Gen>(_g: &mut G) -> Self {
-            Self(Secret::from(generate_valid_password()))
-        }
+    pub fn new(length: u8) -> Self {
+        AccountPassword(AccountPassword::generate_password(length))
     }
 
-    const PASSWORD_CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                            abcdefghijklmnopqrstuvwxyz\
-                            0123456789)(*&^%$#@!~";
-
-    fn generate_password(length: u8) -> String {
+    pub fn generate_password(length: u8) -> Secret<String> {
         let mut rng = rand::thread_rng();
         let required_characters = ['~', '`', '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '-', '+', '=', '{', '[', '}', ']', '|', '\\', ':', ';', '"', '\'', '<', ',', '>', '.', '?', '/'];
         let mut password: String = (0..length)
@@ -61,7 +58,49 @@ mod tests {
             password.replace_range(0..1, &format!("{}", rand_char));
         }
 
-        password
+        Secret::new(password)
+    }
+
+    pub async fn compute_hash(&self) -> Result<Secret<String>, anyhow::Error> {
+        let secret = self.0.clone();
+        let hash =
+            spawn_blocking_with_tracing(move || compute_password_hash(secret))
+                .await?
+                .context("Failed to hash password")?;
+        Ok(hash)
+    }
+}
+
+fn compute_password_hash(password: Secret<String>) -> Result<Secret<String>, anyhow::Error> {
+    let salt = SaltString::generate(&mut rand::thread_rng());
+    let hash = Argon2::new(
+        Algorithm::Argon2id,
+        Version::V0x13,
+        Params::new(15000, 2, 1, None).unwrap(),
+    ).hash_password(password.expose_secret().as_bytes(), &salt)?
+        .to_string();
+    Ok(Secret::new(hash))
+}
+
+#[cfg(test)]
+mod tests {
+    use claim::assert_err;
+    use quickcheck::Gen;
+    use rand::Rng;
+    use secrecy::{ExposeSecret, Secret};
+    use crate::domain::AccountPassword;
+
+    #[derive(Debug, Clone)]
+    struct ValidPasswordFixture(pub Secret<String>);
+
+    impl quickcheck::Arbitrary for ValidPasswordFixture {
+        fn arbitrary<G: Gen>(_g: &mut G) -> Self {
+            Self(Secret::from(generate_valid_password()))
+        }
+    }
+
+    fn generate_password(length: u8) -> String {
+        AccountPassword::generate_password(length).expose_secret().to_string()
     }
 
     #[quickcheck_macros::quickcheck]

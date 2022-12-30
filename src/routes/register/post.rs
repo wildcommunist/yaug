@@ -4,13 +4,11 @@ use actix_web::http::StatusCode;
 use actix_web::web::{Data, Form};
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 use uuid::Uuid;
 use crate::domain::{AccountCredentials, AccountPassword, AccountEmail};
-use crate::email_client::EmailClient;
 use crate::helpers::generate_subscription_token;
-use crate::startup::ApplicationBaseUrl;
 use crate::store::{get_account_by_email, store_user_account, store_user_activation_email_job, store_user_activation_token};
 use crate::utils::{error_chain_fmt, see_other};
 
@@ -24,6 +22,10 @@ pub struct FormData {
 impl TryFrom<FormData> for AccountCredentials {
     type Error = String;
     fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        if value.password_check.expose_secret() != value.password.expose_secret() {
+            return Err(format!("Password mismatch"));
+        }
+
         let email = AccountEmail::parse(value.email)?;
         let password = AccountPassword::parse(value.password)?;
         Ok(AccountCredentials {
@@ -58,7 +60,7 @@ impl ResponseError for RegistrationError {
 
 #[tracing::instrument(
 name = "Account registration",
-skip(data, pool, email_client, base_url),
+skip(data, pool),
 fields(
 account_email = % data.email
 )
@@ -66,11 +68,9 @@ account_email = % data.email
 pub async fn post_register(
     data: Form<FormData>,
     pool: Data<PgPool>,
-    email_client: Data<EmailClient>,
-    base_url: Data<ApplicationBaseUrl>,
 ) -> Result<HttpResponse, RegistrationError> {
     let new_account: AccountCredentials = data.0.try_into().map_err(RegistrationError::ValidationError)?;
-    if let Some(u) = get_account_by_email(&pool, &new_account.email)
+    if let Some(_u) = get_account_by_email(&pool, &new_account.email)
         .await
         .map_err(RegistrationError::UnexpectedError)?
     {
@@ -89,7 +89,7 @@ pub async fn post_register(
             &mut tx,
             Uuid::new_v4(),
             &new_account.email,
-            Secret::new("test".to_string()),
+            new_account.password.compute_hash().await?,
         ).await.context("Failed to store new user account")?;
 
     // store activation token
@@ -100,15 +100,17 @@ pub async fn post_register(
         .await
         .context("Failed to store account activation token")?;
 
-    store_user_activation_email_job(&mut tx, new_account.email, "")
+    // queue up activation email job
+    store_user_activation_email_job(&mut tx, &new_account.email, "") //TODO: content
         .await
         .context("Failed to save activation email job")?;
-
-    // queue up activation email job
 
     tx.commit()
         .await
         .context("Failed to commit account creation transaction")?;
 
-    Ok(HttpResponse::Ok().finish())
+    FlashMessage::success(
+        "Your account has been created, please check you email for further instructions."
+    ).send();
+    Ok(see_other("/login"))
 }

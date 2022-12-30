@@ -4,4 +4,4 @@ mod password;
 
 pub use credentials::AccountCredentials;
 pub use email::AccountEmail;
-pub use password::AccountPassword;
+pub use password::{AccountPassword};
